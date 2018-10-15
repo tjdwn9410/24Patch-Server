@@ -75,6 +75,10 @@ router.post('/signin', async function(req, res, next) {
     } catch (err) {
       connection.release();
       console.log(err);
+      res.status(500);
+      res.json({
+        'msg': 'Server Error'
+      })
     }
 
   } catch (err) {
@@ -84,6 +88,56 @@ router.post('/signin', async function(req, res, next) {
       'msg': 'Server Error'
     })
     console.log(err);
+  }
+});
+
+
+//회원탈퇴
+router.delete('/withdrawal', async function(req, res, next) {
+  const {
+    id
+  } = req.body;
+  const jwtToken = req.headers['x-access-token'];
+  console.log(jwtToken, req.headers,id);
+  const isTokenValid = jwtUtil.verifyToken(jwtToken)
+  if(isTokenValid.isValid) {
+    try {
+      const connection = await dbPool.getConnection();
+      try {
+        const result = await connection.query('DELETE FROM users WHERE id=?', [id]);
+        connection.release();
+        console.log(result[0].affectedRows);
+        if(result[0].affectedRows === 1) {
+          res.status(200);
+          res.json({
+            'msg': 'Success'
+          });
+        } else {
+          res.status(404);
+          res.json({
+            'msg': 'Can\'t find id'
+          });
+        }
+      } catch (err) {
+        connection.release();
+        res.status(500);
+        res.json({
+          'msg': 'Server Error'
+        })
+      }
+    } catch (err) {
+      connection.release();
+      res.status(500);
+      res.json({
+        'msg': 'Server Error'
+      })
+      console.log(err);
+    }
+  } else {
+    res.status(401);
+    res.json({
+      'msg': 'Invalid Token'
+    })
   }
 });
 
