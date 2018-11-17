@@ -3,7 +3,9 @@ var router = express.Router();
 
 let jwtUtil = require('../util/jwt_util')
 let dbPool = require('../util/db_util')
-
+let formidable = require('formidable');
+let util = require('util');
+let fs = require('fs-extra');
 // 회원가입
 router.post('/signup', async function(req, res, next) {
   const {
@@ -146,8 +148,8 @@ router.put('/emergency/add', async function(req, res, next) {
     phoneNumber,
   } = req.body;
   const jwtToken = req.headers['x-access-token'];
-  console.log(id,name,phoneNumber);
-  const isTokenValid = jwtUtil.verifyToken(jwtToken)
+  console.log(id, name, phoneNumber);
+  const isTokenValid = jwtUtil.verifyToken(jwtToken);
   if (isTokenValid.isValid) {
     try {
       const connection = await dbPool.getConnection();
@@ -290,14 +292,15 @@ router.put('/symptom/add', async function(req, res, next) {
     type
   } = req.body;
   const jwtToken = req.headers['x-access-token'];
-  const isTokenValid = jwtUtil.verifyToken(jwtToken)
+  const isTokenValid = jwtUtil.verifyToken(jwtToken);
+  console.log(time);
   if (isTokenValid.isValid) {
     let check = false;
     try {
       const connection = await dbPool.getConnection();
       for (let symptom of symptoms) {
         try {
-          const result = await connection.query('INSERT INTO symptoms(user_id, symptom, time,type) VALUES(?,?,?,?)', [id, symptom, time,type]);
+          const result = await connection.query('INSERT INTO symptoms(user_id, symptom, time,type) VALUES(?,?,?,?)', [id, symptom, time, type]);
         } catch (err) {
           connection.release();
           check = true;
@@ -316,7 +319,7 @@ router.put('/symptom/add', async function(req, res, next) {
         'msg': 'Server Error'
       })
     }
-    if(check == false) {
+    if (check == false) {
       res.status(200);
       res.json({
         'msg': 'Success'
@@ -339,29 +342,32 @@ router.get('/symptom/list/:id', async function(req, res, next) {
       const connection = await dbPool.getConnection();
       try {
         const result = await connection.query('SELECT time, symptom,type FROM symptoms WHERE user_id = ?', id);
+
         connection.release();
         let symptom_list = [];
         let dict = {};
         let type = {};
         for (let i = 0; i < result[0].length; i++) {
-          const datetime = result[0][i]['time'].toISOString().replace('T',' ').substr(0,19).replace(/-/g,'.');
-          if(!dict[datetime]) {
+          console.log(result[0][i]['time']);
+          const datetime = result[0][i]['time'].toISOString().replace('T', ' ').substr(0, 19).replace(/-/g, '.');
+          console.log(datetime);
+          if (!dict[datetime]) {
             dict[datetime] = [];
           }
           dict[datetime].push(result[0][i]['symptom']);
           type[datetime] = result[0][i]['type'];
         }
-        for(let key in dict) {
+        for (let key in dict) {
           symptom_list.push({
-            'time' : key ,
-            'symptoms' : dict[key],
-            'type' : type[key]
+            'time': key,
+            'symptoms': dict[key],
+            'type': type[key]
           });
         }
         res.status(200);
         res.json({
           'msg': 'Success',
-          'symptom_list' : symptom_list
+          'symptom_list': symptom_list
         });
       } catch (err) {
         connection.release();
@@ -378,6 +384,46 @@ router.get('/symptom/list/:id', async function(req, res, next) {
         'msg': 'Server Error'
       })
     }
+  } else {
+    res.status(401);
+    res.json({
+      'msg': 'Invalid Token'
+    })
+  }
+});
+
+router.post('/signal', (req, res, next) => {
+  const jwtToken = req.headers['x-access-token'];
+  const isTokenValid = jwtUtil.verifyToken(jwtToken);
+  if (isTokenValid.isValid) {
+    let form = new formidable.IncomingForm();
+    form.encoding = 'utf-8';
+    form.multiples = true;
+    form.uploadDir = '/home/ubuntu/signalus/files/';
+    form.on('end', function(fields, files) {});
+    form.parse(req, function(err, field, file) {
+      console.log(err, field, file.file.path);
+      let timeTrans = field.time;
+      timeTrans = timeTrans.replace(/\./g, "").replace(/:/g, "").replace(/\s/g, "");
+      // console.log(timeTrans);
+      // console.log(file.file.path, form.uploadDir +'/' + field['id'] + '/' + timeTrans + "_" + file.name);
+      try {
+        fs.mkdirSync(form.uploadDir + field['id']);
+      } catch (e) {
+        console.log(e.code);
+        if (e.code != 'EEXIST') throw e; // 존재할경우 패스처리함.
+      }
+      fs.move(file.file.path, form.uploadDir + field['id'] + '/' + timeTrans + "_" + file.file.name);
+      if (!err) {
+        res.json({
+          'msg': 'success'
+        });
+      } else {
+        res.json({
+          'msg': 'upload fail'
+        });
+      }
+    });
   } else {
     res.status(401);
     res.json({
