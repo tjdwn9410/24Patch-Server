@@ -413,7 +413,7 @@ router.post('/signal', (req, res, next) => {
         console.log(e.code);
         if (e.code != 'EEXIST') throw e; // 존재할경우 패스처리함.
       }
-      fs.move(file.file.path, form.uploadDir + field['id'] + '/' + timeTrans + "_" + file.file.name);
+      fs.move(file.file.path, form.uploadDir + field['id'] + '/' + timeTrans + "_" + 'signal.txt');
       if (!err) {
         res.json({
           'msg': 'success'
@@ -429,6 +429,33 @@ router.post('/signal', (req, res, next) => {
     res.json({
       'msg': 'Invalid Token'
     })
+  }
+});
+
+router.get('/signal/:id/:time', (req, res, next) => {
+  const jwtToken = req.headers['x-access-token'];
+  const isTokenValid = jwtUtil.verifyToken(jwtToken);
+  if (isTokenValid.isValid) {
+    let id = req.params.id;
+    let timeTrans = req.params.time;
+    timeTrans = timeTrans.replace(/\./g, "").replace(/:/g, "").replace(/_/g, "");
+    console.log(timeTrans);
+    // res.send(timeTrans);
+    console.log('/home/ubuntu/signalus/files/'+id+'/'+timeTrans+"_signal.txt");
+    res.download('/home/ubuntu/signalus/files/'+id+'/'+timeTrans+"_signal.txt", function(err) {
+      console.log(err);
+      if(err) {
+        res.status(404);
+        res.json({
+          'msg' : 'no such file'
+        });
+      }
+    });
+  } else {
+    res.status(401);
+    res.json({
+      'msg': 'Invalid Token'
+    });
   }
 });
 module.exports = router;
