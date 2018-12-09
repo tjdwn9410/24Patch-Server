@@ -84,10 +84,10 @@ router.post('/signin', async function(req, res, next) {
 
   } catch (err) {
     res.status(500);
+    console.log(err);
     res.json({
       'msg': 'Server Error'
     })
-    console.log(err);
   }
 });
 
@@ -402,7 +402,7 @@ router.post('/signal', (req, res, next) => {
     form.uploadDir = '/home/ubuntu/signalus/files/';
     form.on('end', function(fields, files) {});
     form.parse(req, function(err, field, file) {
-      console.log(err, field, file.file.path);
+      console.log(err, field, file.signalFile);
       let timeTrans = field.time;
       timeTrans = timeTrans.replace(/\./g, "").replace(/:/g, "").replace(/\s/g, "");
       // console.log(timeTrans);
@@ -413,7 +413,7 @@ router.post('/signal', (req, res, next) => {
         console.log(e.code);
         if (e.code != 'EEXIST') throw e; // 존재할경우 패스처리함.
       }
-      fs.move(file.file.path, form.uploadDir + field['id'] + '/' + timeTrans + "_" + 'signal.txt');
+      fs.move(file.signalFile.path, form.uploadDir + field['id'] + '/' + timeTrans + "_" + 'signal.txt');
       if (!err) {
         res.json({
           'msg': 'success'
